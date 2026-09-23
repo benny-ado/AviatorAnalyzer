@@ -1,0 +1,201 @@
+name: Build Aviator Analyzer APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create Android project
+        run: |
+          mkdir -p app/src/main/java/com/mkimbo/aviator
+          mkdir -p app/src/main/res/values
+
+          cat > settings.gradle <<'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+
+          rootProject.name = "AviatorAnalyzer"
+          include ":app"
+          EOF
+
+          cat > build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application' version '8.4.2' apply false
+          }
+          EOF
+
+          cat > app/build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application'
+          }
+
+          android {
+              namespace 'com.mkimbo.aviator'
+              compileSdk 35
+
+              defaultConfig {
+                  applicationId 'com.mkimbo.aviator"
+                  minSdk 23
+                  targetSdk 35
+                  versionCode 1
+                  versionName "1.0"
+              }
+          }
+          EOF
+
+          cat > app/src/main/res/values/strings.xml <<'EOF'
+          <resources>
+              <string name="app_name">Aviator Analyzer</string>
+          </resources>
+          EOF
+
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <application
+                  android:theme="@style/AppTheme"
+                  android:label="@string/app_name"
+                  android:allowBackup="true">
+
+                  <activity
+                      android:name=".MainActivity"
+                      android:screenOrientation="portrait"
+                      android:exported="true">
+
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          cat > app/src/main/res/values/styles.xml <<'EOF'
+          <resources>
+              <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+                  <item name="android:fontFamily">sans</item>
+                  <item name="android:windowLightStatusBar">true</item>
+                  <item name="android:statusBarColor">#FFFFFF</item>
+              </style>
+          </resources>
+          EOF
+
+          cat > app/src/main/java/com/mkimbo/aviator/MainActivity.java <<'EOF'
+          package com.mkimbo.aviator;
+
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.graphics.Color;
+          import android.view.Gravity;
+          import android.widget.*;
+
+          public class MainActivity extends Activity {
+
+              LinearLayout layout;
+              EditText input;
+              TextView result;
+
+              @Override
+              public void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+
+                  layout = new LinearLayout(this);
+                  layout.setOrientation(LinearLayout.VERTICAL);
+                  layout.setPadding(30, 40, 30, 30);
+
+                  TextView title = new TextView(this);
+                  title.setText("✈ AVIATOR ANALYZER");
+                  title.setTextSize(28);
+                  title.setTextColor(Color.BLACK);
+                  title.setGravity(Gravity.CENTER);
+                  layout.addView(title);
+
+                  TextView subtitle = new TextView(this);
+                  subtitle.setText("Ingiza crash points za rounds zilizopita");
+                  subtitle.setTextSize(16);
+                  subtitle.setGravity(Gravity.CENTER);
+                  layout.addView(subtitle);
+
+                  input = new EditText(this);
+                  input.setHint("Mfano: 1.24, 2.15, 1.08, 5.40");
+                  layout.addView(input);
+
+                  Button analyze = new Button(this);
+                  analyze.setText("ANALYZE");
+                  layout.addView(analyze);
+
+                  result = new TextView(this);
+                  result.setTextSize(18);
+                  result.setPadding(10, 30, 10, 10);
+                  layout.addView(result);
+
+                  TextView warning = new TextView(this);
+                  warning.setText(
+                      "⚠ Analyzer hutumia statistics za rounds ulizoingiza. " +
+                      "Haiwezi kuhakikisha crash point ya round inayofuata."
+                  );
+                  warning.setTextSize(14);
+                  layout.addView(warning);
+
+                  analyze.setOnClickListener(v -> analyzeData());
+
+                  setContentView(layout);
+              }
+
+              void analyzeData() {
+                  String text = input.getText().toString().trim();
+
+                  if (text.isEmpty()) {
+                      result.setText("Tafadhali ingiza crash points kwanza.");
+                      return;
+                  }
+
+                  String[] values = text.split(",");
+                  double sum = 0;
+                  int valid = 0;
+                  int below2 = 0;
+                  int above2 = 0;
+
+                  for (String s : values) {
+                      try {
+                          double x = Double.parseDouble(s.trim());
+                          if (x > 0) {
+                              sum += x;
+                              valid++;
+                              if (x < 2.0) below2++;
+                              else above2++;
+                          }
+                      } catch (Exception ignored) {}
+                  }
+
+                  if (valid == 0) {
+                      result.setText("Hakuna crash point sahihi iliyopatikana.");
+                      return;
+                  }
+
+                  double average = sum / valid;
+
+                  result.setText(
+                      "📊 ANALYSIS\\n\\n" +
+                      "Rounds: " + valid + "\\n" +
+                      "Average: " + String.format("%.2fx
