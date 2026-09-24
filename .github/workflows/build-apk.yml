@@ -6,6 +6,11 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+          - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AviatorAnalyzer-APK
+          path: app/build/outputs/apk/**/*.apk
 
     steps:
       - name: Checkout
